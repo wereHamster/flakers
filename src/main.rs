@@ -1,13 +1,47 @@
 use flakers::{Entry, parse_commit_message, render_entry};
 use std::io::{self, Read};
 use std::process::ExitCode;
+use clap::Parser as ArgsParser;
+use rand::{distr::Alphabetic, Rng};
+
+#[derive(ArgsParser)]
+struct Args {
+    /// If set, output is wrapped in an armor, allowing it to be piped
+    /// directly into $GITHUB_OUTPUT.
+    #[arg(long)]
+    github_output_armor: Option<String>,
+}
+
+struct GitHubOutputArmor {
+    delimiter: String,
+}
+
+impl Drop for GitHubOutputArmor {
+    fn drop(&mut self) {
+        println!("{}", self.delimiter);
+    }
+}
 
 fn main() -> ExitCode {
+    let args = Args::parse();
     let mut input = String::new();
     #[allow(clippy::expect_used)]
     io::stdin()
         .read_to_string(&mut input)
         .expect("Failed to read stdin");
+
+    let _guard = if let Some(output_key) = &args.github_output_armor {
+        let delimiter = rand::rng()
+            .sample_iter(&Alphabetic)
+            .take(20)
+            .map(char::from)
+            .collect::<String>();
+
+        println!("{}<<{}", output_key, &delimiter);
+        Some(GitHubOutputArmor { delimiter })
+    } else {
+        None
+    };
 
     println!("<details><summary>Raw output</summary><p>");
     println!("\n```");
